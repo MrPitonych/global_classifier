@@ -60,12 +60,8 @@ def perform_model(model, X_train, y_train, X_test, y_test, class_labels, cm_norm
 
     # calculate overall accuracty of the model
     accuracy = metrics.accuracy_score(y_true=y_test, y_pred=y_pred)
-    # store accuracy in results
-    crosstab = pd.crosstab(y_test.values.flatten(), y_pred,
-                           rownames=['True'], colnames=['Predicted'],
-                           margins=True)
-    crosstab_clean = crosstab.iloc[:-1, :-1]
-    print(crosstab_clean)
+
+
     results['accuracy'] = accuracy
     print('*****************************')
     print('Accuracy:', format(accuracy))
@@ -85,7 +81,6 @@ def perform_model(model, X_train, y_train, X_test, y_test, class_labels, cm_norm
     plt.grid(b=False)
     confusion_matrix(cm, classes=class_labels, normalize=True, title='Normalized confusion matrix', cmap=cm_cmap)
     plt.savefig('abc.png')
-    plt.show()
 
 
     # get classification report

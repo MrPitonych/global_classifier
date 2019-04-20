@@ -1,9 +1,24 @@
-import pandas as pd
+from sklearn import metrics
+from sklearn.metrics import roc_curve, auc
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 
-import behavior.data_parameter as pr
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+
+import pandas as pd
+import numpy as np
 from docx import Document
 from docx.shared import Inches
+import matplotlib.pyplot as plt
+import scikitplot as skplt
+
+import behavior.data_parameter as pr
+import data_loader as dl
+import full_method as fm
 
 path = './initial_data/Cow_man.csv'
 ActualData = pd.read_csv(path, usecols=['time', 'gFx', 'gFy', 'gFz', 'Class'], sep=',', low_memory=False)
@@ -17,7 +32,6 @@ size_window = 600
 
 
 def switch_data_parameter(x):
-
     global res
 
     if x == 1:
@@ -228,7 +242,6 @@ def switch_data_parameter(x):
     return res
 
 
-
 def switch_name_data_parameter(x):
     return {
         1: 'ax_mean',
@@ -337,20 +350,89 @@ def switch_name_data_parameter(x):
 
 
 def generate():
-
     document = Document()
 
-    for i in range(2):
-        for j in range(2):
-            d = {switch_name_data_parameter(i+1) : switch_data_parameter(i+1),
-                 switch_name_data_parameter(j+2) : switch_data_parameter(j+2),
-                 switch_name_data_parameter(102) : switch_data_parameter(102)}
+    for i in range(101):
+        for j in range(101):
+            d = {switch_name_data_parameter(i + 1): switch_data_parameter(i + 1),
+                 switch_name_data_parameter(j + 1): switch_data_parameter(j + 1),
+                 switch_name_data_parameter(102): switch_data_parameter(102)}
 
-    full = pd.DataFrame(data=d)
-    train, test = train_test_split(full, test_size=0.50)
+            full = pd.DataFrame(data=d)
+            train, test = train_test_split(full, test_size=0.50)
 
-    train.to_csv('train.csv', index=False)
-    test.to_csv('test.csv', index=False)
+            train.to_csv('train.csv', index=False)
+            test.to_csv('test.csv', index=False)
+
+            train = dl.data_loading('./train.csv')
+            test = dl.data_loading('./test.csv')
+            labels = dl.labels_loading()
+
+            # get X_train and y_train from csv files
+            X_train = train.drop(['Activity'], axis=1)
+            y_train = train.Activity
+
+            # get X_test and y_test from test csv file
+            X_test = test.drop(['Activity'], axis=1)
+            y_test = test.Activity
+
+            document.add_heading(
+                'Parameters: ' + switch_name_data_parameter(i + 1) + ' and ' + switch_name_data_parameter(j + 1), 0)
+
+            # DT classifier
+            parameters_dt = {'max_depth': np.arange(3, 10, 2)}
+            dt = DecisionTreeClassifier()
+            dt_grid = GridSearchCV(dt, param_grid=parameters_dt, n_jobs=-1)
+            dt_grid_results = fm.perform_model(dt_grid, X_train, y_train, X_test, y_test, class_labels=labels)
+
+            document.add_paragraph(
+                format('Сlassification algorithm: ' + 'Decision Trees' + '\n' + 'Full accuracy: ' + str(
+                    dt_grid_results['accuracy'])), style='List Number'
+            )
+
+            document.add_picture('./abc.png', width=Inches(3.25))
+
+            # Gradient Boost DT classifier
+            param_grid = {'max_depth': np.arange(5, 8, 1), \
+                          'n_estimators': np.arange(130, 170, 10)}
+            gbdt = GradientBoostingClassifier()
+            gbdt_grid = GridSearchCV(gbdt, param_grid=param_grid, n_jobs=-1)
+            gbdt_grid_results = fm.perform_model(gbdt_grid, X_train, y_train, X_test, y_test, class_labels=labels)
+
+            document.add_paragraph(
+                format('Сlassification algorithm: ' + 'Decision Trees' + '\n' + 'Full accuracy: ' + str(
+                    gbdt_grid_results['accuracy'])), style='List Number'
+            )
+
+            document.add_picture('./abc.png', width=Inches(3.25))
+
+            # Logistic Regression classifier
+            parameters_lr = {'C': [0.001, 0.1, 1, 10, 20, 30], 'penalty': ['l2', 'l1']}
+            log_reg = LogisticRegression(multi_class='auto')
+            log_reg_grid = GridSearchCV(log_reg, param_grid=parameters_lr, cv=3, verbose=1, n_jobs=-1)
+            log_reg_grid_results = fm.perform_model(log_reg_grid, X_train, y_train, X_test, y_test, class_labels=labels)
+
+            document.add_paragraph(
+                format('Сlassification algorithm: ' + 'Decision Trees' + '\n' + 'Full accuracy: ' + str(
+                    log_reg_grid_results['accuracy'])), style='List Number'
+            )
+
+            # Random Forest classifier
+            parameters_rf = {'n_estimators': np.arange(10, 201, 20), 'max_depth': np.arange(3, 15, 2)}
+            rfc = RandomForestClassifier()
+            rfc_grid = GridSearchCV(rfc, param_grid=parameters_rf, n_jobs=-1)
+            rfc_grid_results = fm.perform_model(rfc_grid, X_train, y_train, X_test, y_test, class_labels=labels)
+
+            document.add_paragraph(
+                format('Сlassification algorithm: ' + 'Decision Trees' + '\n' + 'Full accuracy: ' + str(
+                    rfc_grid_results['accuracy'])), style='List Number'
+            )
+
+            document.add_picture('./abc.png', width=Inches(3.25))
+
+            document.add_page_break()
+
+    document.save('demo.docx')
 
 
 generate()
